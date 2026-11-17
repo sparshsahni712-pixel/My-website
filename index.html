@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090d18">
+  <title>Forge — AI Website Builder</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">F</span><span>forge<span class="muted">.ai</span></span></a>
+      <div class="top-actions"><span class="status-dot"></span><span>Cloudflare powered</span></div>
+    </header>
+
+    <main class="workspace">
+      <section class="left-panel">
+        <div class="eyebrow">AI WEBSITE STUDIO</div>
+        <h1>Build something<br><span>remarkable.</span></h1>
+        <p class="intro">Describe your idea. Your AI assistant will turn it into a responsive website you can preview and refine.</p>
+
+        <label class="field-label" for="prompt">WHAT DO YOU WANT TO BUILD?</label>
+        <textarea id="prompt" maxlength="6000" placeholder="Example: Create a premium dentist website with a warm, modern design, services, dentist profiles, patient testimonials and an appointment form..."></textarea>
+
+        <button id="generate" class="generate-btn"><span>✦</span> Generate website <span class="arrow">→</span></button>
+        <p class="hint">Generation may take a little time. Your API keys stay on the server.</p>
+        <div id="message" class="message" role="status"></div>
+
+        <div class="examples">
+          <div class="field-label">TRY AN IDEA</div>
+          <button class="example" data-prompt="Create a premium dental clinic website with a clean white and teal design, services, dentist profiles, testimonials, clinic timings and an appointment request form.">✦ Dental clinic website</button>
+          <button class="example" data-prompt="Create a modern personal portfolio for a creative web designer, with a bold hero, project cards, about section, skills and contact section.">✦ Designer portfolio</button>
+          <button class="example" data-prompt="Create a stylish restaurant website with a large food hero image area, menu highlights, story, opening hours, location and reservation call to action.">✦ Restaurant website</button>
+        </div>
+      </section>
+
+      <section class="preview-panel">
+        <div class="preview-toolbar">
+          <div><span class="live-dot"></span> Live preview</div>
+          <div class="preview-actions">
+            <button id="open-tab" disabled>Open ↗</button>
+            <button id="download" disabled>Download HTML ↓</button>
+          </div>
+        </div>
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">⌘</div>
+          <h2>Your canvas is ready</h2>
+          <p>Your generated website will appear here.</p>
+          <span class="empty-chip">Responsive preview</span>
+        </div>
+        <iframe id="preview" title="Generated website preview" sandbox="allow-scripts allow-forms allow-modals" hidden></iframe>
+      </section>
+    </main>
+    <footer><span>FORGE.AI</span><span>Ideas into websites.</span></footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
