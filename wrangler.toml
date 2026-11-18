@@ -9,3 +9,5 @@ run_worker_first = ["/api/*"]
 
 [vars]
 OPENAI_MODEL = "gpt-6.2-sol"
+[ai]
+binding = "AI"
