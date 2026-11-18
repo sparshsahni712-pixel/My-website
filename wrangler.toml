@@ -8,4 +8,4 @@ binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
 [vars]
-GEMINI_MODEL = "gemini-3.8-flash"
+OPENAI_MODEL = "gpt-6.2-sol"
