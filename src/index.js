@@ -1,102 +1,188 @@
-const SYSTEM_PROMPT = `You are an expert web designer and frontend developer.
-Create a complete, polished, responsive website based on the user's request.
-Return ONLY a complete standalone HTML document beginning with <!doctype html>.
-Put all CSS in a <style> tag and any JavaScript in a <script> tag.
-Do not use markdown fences, explanations, external build tools, or React.
-Use accessible semantic HTML, responsive layouts, realistic copy, and attractive visual design.
-Do not include API keys, secret values, or server-side code.
-If the user asks for a business website, include appropriate sections and clear calls to action.`;
+const SYSTEM_PROMPT = `
+You are an advanced AI Website Builder.
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" }
-  });
-}
+Your task is to generate complete websites from user prompts.
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+Requirements:
+- Create modern, professional websites.
+- Use responsive HTML, CSS and JavaScript.
+- Include functional navigation and buttons.
+- Make designs mobile-friendly.
+- Generate all necessary website files.
+- Do not return explanations.
 
-async function fetchWithRetry(url, options) {
-  let lastResponse;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      if (![429, 500, 502, 503, 504].includes(response.status)) return response;
-      lastResponse = response;
-    } catch (error) {
-      if (attempt === 2) throw error;
-    }
-    if (attempt < 2) await sleep(500 * (2 ** attempt));
-  }
-  return lastResponse;
-}
+Return valid JSON in this exact format:
 
-async function callGemini(prompt, env) {
-  if (!env.GEMINI_API_KEY) throw new Error("Gemini API key is not configured.");
-  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  const response = await fetchWithRetry(url, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-goog-api-key": env.GEMINI_API_KEY
+{
+  "files": [
+    {
+      "path": "index.html",
+      "content": "<!DOCTYPE html>..."
     },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 600000
-        
-      }
-    })
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error?.message || `Gemini returned HTTP ${response.status}`);
-  const candidate = data.candidates?.[0];
-  const result = candidate?.content?.parts?.filter(p => !p.thought).map(p => p.text || "").join("\n");
-  if (!result) throw new Error(data.promptFeedback?.blockReason ? `Prompt blocked: ${data.promptFeedback.blockReason}` : "Gemini returned an empty response.");
-  if (candidate.finishReason === "MAX_TOKENS") throw new Error("The website was too long and got cut off. Try a simpler prompt.");
-  return result;
-}
-
-function cleanHtml(value) {
-  let text = value.trim();
-  const start = text.search(/<!doctype html|<html[\s>]/i);
-  if (start > 0) text = text.slice(start);
-  const end = text.toLowerCase().lastIndexOf("</html>");
-  if (end !== -1) text = text.slice(0, end + 7);
-  return text.trim();
-}
-
-async function generate(request, env) {
-  const body = await request.json().catch(() => null);
-  const prompt = body?.prompt?.trim();
-
-  if (!prompt || prompt.length < 5) return json({ error: "Please enter a more detailed website prompt." }, 400);
-  if (prompt.length > 6000) return json({ error: "Prompt is too long. Keep it under 6,000 characters." }, 400);
-
-  try {
-    const output = await callGemini(prompt, env);
-    const html = cleanHtml(output);
-    if (!/^<!doctype html|^<html[\s>]/i.test(html)) {
-      throw new Error("The AI response was not a complete HTML document. Please try again.");
+    {
+      "path": "style.css",
+      "content": "..."
+    },
+    {
+      "path": "script.js",
+      "content": "..."
     }
-    return json({ html, provider: "gemini", message: "Website generated with Gemini." });
-  } catch (error) {
-    return json({
-      error: `Could not generate the website: ${error.message}`
-    }, 502);
-  }
+  ]
 }
+`;
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === "/api/generate" && request.method === "POST") {
-      return generate(request, env);
+
+    const origin = env.ALLOWED_ORIGIN || "*";
+
+    const headers = {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    };
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers });
     }
-    if (url.pathname.startsWith("/api/")) return json({ error: "API route not found." }, 404);
-    return env.ASSETS.fetch(request);
+
+    if (request.method !== "POST") {
+      return Response.json(
+        { success: false, error: "Method not allowed" },
+        { status: 405, headers }
+      );
+    }
+
+    try {
+
+      if (!env.OPENAI_API_KEY) {
+        throw new Error("OpenAI API key is missing.");
+      }
+
+      const body = await request.json();
+      const prompt = body.prompt;
+
+      if (
+        typeof prompt !== "string" ||
+        !prompt.trim() ||
+        prompt.length > 10000
+      ) {
+        return Response.json(
+          { success: false, error: "Invalid website prompt." },
+          { status: 400, headers }
+        );
+      }
+
+      const response = await fetch(
+        "https://api.openai.com/v1/responses",
+        {
+          method: "POST",
+
+          headers: {
+            "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            model: env.OPENAI_MODEL || "gpt-6.2-sol",
+
+            instructions: SYSTEM_PROMPT,
+
+            input: prompt,
+
+            max_output_tokens: 12000,
+
+            text: {
+              format: {
+                type: "json_schema",
+                name: "website_files",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    files: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          path: { type: "string" },
+                          content: { type: "string" }
+                        },
+                        required: ["path", "content"],
+                        additionalProperties: false
+                      }
+                    }
+                  },
+                  required: ["files"],
+                  additionalProperties: false
+                }
+              }
+            }
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return Response.json(
+          {
+            success: false,
+            error: data.error?.message || "OpenAI API error"
+          },
+          { status: response.status, headers }
+        );
+      }
+
+      const output = (data.output || [])
+        .filter(item => item.type === "message")
+        .flatMap(item => item.content || [])
+        .filter(item => item.type === "output_text")
+        .map(item => item.text)
+        .join("");
+
+      if (!output) {
+        throw new Error("AI returned an empty response.");
+      }
+
+      const result = JSON.parse(output);
+
+      if (
+        !Array.isArray(result.files) ||
+        result.files.length === 0 ||
+        result.files.length > 30
+      ) {
+        throw new Error("Invalid website files generated.");
+      }
+
+      for (const file of result.files) {
+        if (
+          typeof file.path !== "string" ||
+          typeof file.content !== "string" ||
+          file.path.startsWith("/") ||
+          file.path.split("/").includes("..")
+        ) {
+          throw new Error("Invalid generated file.");
+        }
+      }
+
+      return Response.json({
+        success: true,
+        files: result.files,
+        message: "Website generated successfully!"
+      }, { headers });
+
+    } catch (error) {
+
+      return Response.json({
+        success: false,
+        error: error.message
+      }, {
+        status: 500,
+        headers
+      });
+
+    }
   }
 };
